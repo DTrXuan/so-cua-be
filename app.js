@@ -14,7 +14,7 @@ const TYPES = ['breast', 'bottle', 'diaper', 'sleep'];
 const PRESETS = [30, 60, 90, 120];
 const WD = ['CN', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7'];
 const LS_SIGNED = 'socuabe.signed';
-const APP_VERSION = 'v4';
+const APP_VERSION = 'v5';
 
 const svg = inner => `<svg viewBox="0 0 24 24" aria-hidden="true">${inner}</svg>`;
 const I = {
