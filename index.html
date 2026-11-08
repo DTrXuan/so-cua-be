@@ -1,0 +1,319 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Sổ của bé</title>
+<meta name="description" content="Ghi bú, tã, ngủ của bé bằng một chạm; đồng bộ giữa điện thoại của bố và mẹ.">
+<meta name="theme-color" content="#1C1612" media="(prefers-color-scheme: dark)">
+<meta name="theme-color" content="#EEF0EC" media="(prefers-color-scheme: light)">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Sổ bé">
+<link rel="manifest" href="./manifest.webmanifest">
+<link rel="icon" href="./icons/icon-192.png" type="image/png">
+<link rel="apple-touch-icon" href="./icons/apple-touch-icon.png">
+<link rel="stylesheet" href="./fonts/fonts.css">
+<link rel="modulepreload" href="./firebase.js">
+<link rel="modulepreload" href="./app.js">
+<style>
+/* Layout: a bottom-heavy bedside console. The top quarter is for reading only (a sentence readout
+   plus a 24-hour ring drawn to scale); the lower three quarters are controls sized in fr units so
+   they grow with the phone; the bottom bar navigates and doubles as the confirmation line.
+   Principles: color means activity and glow means a timer is running; each group shares one
+   outline (the breast pair is one split oval, the diaper trio one split strip); copy is written
+   as sentences, never as label chrome. Dark-first: most entries happen in a dim nursery. */
+:root{
+  --bg:#1C1612; --raise:#271F19; --raise-2:#33291F; --ink:#F2E4CF; --muted:#A8977F; --line:#3A2F26;
+  --feed:#F0A048; --feed-fill:#3B2715; --feed-ink:#FFD29C; --feed-lit:#F0A048; --on-feed:#2A1606;
+  --wet:#5EC4B8; --wet-fill:#16302C; --wet-ink:#A6E6DC;
+  --dirty:#B4BC5E; --dirty-fill:#2B2D15; --dirty-ink:#DDE29A;
+  --sleep:#A99CF0; --sleep-fill:#2A2440; --sleep-ink:#D6CFFB; --sleep-lit:#A99CF0; --on-sleep:#1B1530;
+  --milk:#EADBC4; --milk-fill:#2F261E; --milk-ink:#F4E8D6;
+  --danger:#F2897C; --toast:#F2E4CF; --toast-ink:#1C1612; --toast-act:#9C4B06;
+  --scrim:rgb(8 5 3 / .62); --shadow:0 10px 30px rgb(0 0 0 / .4);
+  --glow-feed:rgb(240 160 72 / .36); --glow-sleep:rgb(169 156 240 / .36);
+  --f-display:"Lexend Exa", "Lexend", system-ui, sans-serif;
+  --f-body:"Lexend", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --bar-h:56px;
+  color-scheme:dark;
+}
+@media (prefers-color-scheme: light){
+  :root:not([data-theme="dark"]){
+    --bg:#EEF0EC; --raise:#FFFFFF; --raise-2:#F2F3EF; --ink:#2B221C; --muted:#6B6158; --line:#D8DAD3;
+    --feed:#C46A12; --feed-fill:#F9E1C4; --feed-ink:#6E3605; --feed-lit:#E8902F; --on-feed:#2A1606;
+    --wet:#18857B; --wet-fill:#D0EDE8; --wet-ink:#0A4A44;
+    --dirty:#78812A; --dirty-fill:#E7EACB; --dirty-ink:#454A10;
+    --sleep:#5B4FC4; --sleep-fill:#E2DFFA; --sleep-ink:#2E2780; --sleep-lit:#6A5ED6; --on-sleep:#FFFFFF;
+    --milk:#8A6D4C; --milk-fill:#F2E9DB; --milk-ink:#4E3A24;
+    --danger:#B4372D; --toast:#2B221C; --toast-ink:#F5EFE6; --toast-act:#F4B26A;
+    --scrim:rgb(30 22 16 / .42); --shadow:0 10px 30px rgb(40 30 20 / .18);
+    --glow-feed:rgb(232 144 47 / .32); --glow-sleep:rgb(106 94 214 / .28);
+    color-scheme:light;
+  }
+}
+:root[data-theme="light"]{
+  --bg:#EEF0EC; --raise:#FFFFFF; --raise-2:#F2F3EF; --ink:#2B221C; --muted:#6B6158; --line:#D8DAD3;
+  --feed:#C46A12; --feed-fill:#F9E1C4; --feed-ink:#6E3605; --feed-lit:#E8902F; --on-feed:#2A1606;
+  --wet:#18857B; --wet-fill:#D0EDE8; --wet-ink:#0A4A44;
+  --dirty:#78812A; --dirty-fill:#E7EACB; --dirty-ink:#454A10;
+  --sleep:#5B4FC4; --sleep-fill:#E2DFFA; --sleep-ink:#2E2780; --sleep-lit:#6A5ED6; --on-sleep:#FFFFFF;
+  --milk:#8A6D4C; --milk-fill:#F2E9DB; --milk-ink:#4E3A24;
+  --danger:#B4372D; --toast:#2B221C; --toast-ink:#F5EFE6; --toast-act:#F4B26A;
+  --scrim:rgb(30 22 16 / .42); --shadow:0 10px 30px rgb(40 30 20 / .18);
+  --glow-feed:rgb(232 144 47 / .32); --glow-sleep:rgb(106 94 214 / .28);
+  color-scheme:light;
+}
+
+html{box-sizing:border-box;height:100%;padding-top:env(safe-area-inset-top, 0px);padding-bottom:env(safe-area-inset-bottom, 0px);overscroll-behavior:none;background:var(--bg)}
+*,*::before,*::after{box-sizing:inherit}
+body{height:100%;margin:0;background:var(--bg);color:var(--ink);font:400 15px/1.45 var(--f-body);-webkit-text-size-adjust:100%;-webkit-font-smoothing:antialiased;overscroll-behavior:none}
+[hidden]{display:none !important}
+img{max-width:100%}
+button,input{font:inherit;color:inherit}
+button{cursor:pointer;-webkit-tap-highlight-color:transparent;touch-action:manipulation}
+button:disabled{cursor:default;opacity:.35}
+h1,h2,h3,p,ul,ol{margin:0}
+ul,ol{padding:0;list-style:none}
+svg{display:block}
+
+.app{height:100%;max-width:560px;margin:0 auto;display:grid;grid-template-rows:auto minmax(0,1fr) var(--bar-h);gap:12px;
+  padding-block:12px 10px;padding-left:max(16px, env(safe-area-inset-left, 0px));padding-right:max(16px, env(safe-area-inset-right, 0px))}
+
+/* Reading zone */
+.status{display:grid;grid-template-columns:minmax(0,1fr) auto;column-gap:14px;row-gap:6px;align-items:start}
+.who{grid-column:1 / -1;display:flex;align-items:baseline;gap:10px;min-width:0}
+.who-name{flex:1;min-width:0;font-size:14px;color:var(--muted)}
+.who-name b{font:600 17px/1.2 var(--f-display);color:var(--ink);letter-spacing:-.01em}
+.sync{display:inline-flex;align-items:center;gap:6px;font-size:12.5px;color:var(--muted);white-space:nowrap}
+.sync i{width:7px;height:7px;border-radius:50%;background:var(--feed)}
+.sync.is-busy i{animation:blink 1s ease-in-out infinite}
+.sync.is-warn i{background:var(--danger)}
+@keyframes blink{50%{opacity:.25}}
+.banner{grid-column:1 / -1;font-size:13px;line-height:1.5;color:var(--ink);padding:8px 12px;border-radius:12px;background:var(--raise)}
+.readout{grid-column:1;min-width:0;align-self:end}
+.ro-big{font:700 clamp(34px, 6.4vh, 48px)/1.02 var(--f-display);letter-spacing:-.025em;white-space:nowrap}
+.ro-big.is-feeding{color:var(--feed)}
+.ro-big.quiet{font-size:clamp(20px, 3.6vh, 26px);font-weight:600;color:var(--muted);white-space:normal;letter-spacing:-.01em}
+.ro-line{font-size:14px;color:var(--muted)}
+.ro-big + .ro-line{margin-top:6px}
+.ring{grid-column:2;grid-row:span 2;width:clamp(112px, 33vw, 150px);height:auto;align-self:center}
+.vitals{grid-column:1;display:flex;flex-direction:column;gap:3px;font-size:14px;min-width:0}
+.vitals li{display:flex;align-items:center;gap:8px;min-width:0}
+.dot{width:8px;height:8px;border-radius:50%;flex:none}
+.dot-wet{background:var(--wet)}.dot-dirty{background:var(--dirty)}.dot-sleep{background:var(--sleep)}
+.dot-both{background:linear-gradient(90deg, var(--wet) 50%, var(--dirty) 50%)}
+.digits{display:inline-flex;--dw:.74em;--cw:.38em}
+.digits .d{display:inline-block;width:var(--dw);text-align:center}
+.digits .c{display:inline-block;width:var(--cw);text-align:center}
+.digits.sm{--dw:.66em;--cw:.3em}
+
+.rg-track{fill:none;stroke:var(--raise-2)}
+.rg-tick{stroke:var(--line);stroke-width:1.2}
+.rg-tick.is-major{stroke:var(--muted);stroke-width:1.8}
+.rg-label{font:500 13px var(--f-body);fill:var(--muted)}
+.rg-center{font:500 12px var(--f-body);fill:var(--muted)}
+.rg-feed{fill:none;stroke:var(--feed);stroke-linecap:round}
+.rg-sleep{fill:none;stroke:var(--sleep);stroke-linecap:round}
+.rg-wet{fill:var(--wet)}.rg-dirty{fill:var(--dirty)}.rg-both{fill:var(--dirty);stroke:var(--wet);stroke-width:1.6}
+.rg-now{stroke:var(--ink);stroke-width:1.6;stroke-linecap:round}
+.rg-now-dot{fill:var(--ink)}
+
+/* Acting zone */
+.controls{min-height:0;display:grid;grid-template-rows:minmax(140px, 2.3fr) minmax(70px, 1fr) minmax(70px, 1fr);gap:12px}
+.controls.is-off button{opacity:.45}
+.pair{display:grid;grid-template-columns:1fr 1fr;gap:4px;min-height:0}
+.strip{display:grid;grid-template-columns:repeat(3, minmax(0,1fr));gap:3px;min-height:0}
+.duo{display:grid;grid-template-columns:1fr 1fr;gap:12px;min-height:0}
+.bf,.dp,.sl,.bt{position:relative;border:0;min-width:0;min-height:0;-webkit-user-select:none;user-select:none;transition:transform .08s ease, background-color .15s ease}
+.bf:active,.dp:active,.sl:active,.bt:active{transform:scale(.97)}
+.bf{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;padding:12px 10px;background:var(--feed-fill);color:var(--feed-ink)}
+.bf-L{border-radius:46% 14px 14px 46% / 50% 14px 14px 50%}
+.bf-R{border-radius:14px 46% 46% 14px / 14px 50% 50% 14px}
+.bf-glyph{font:700 clamp(54px, 10.5vh, 86px)/.8 var(--f-display)}
+.bf-name{font-size:15px;font-weight:500}
+.bf-last{display:inline-flex;align-items:center;gap:6px;font-size:12.5px;opacity:.85}
+.bf-last::before{content:"";width:6px;height:6px;border-radius:50%;background:currentColor}
+.bf-state{font-size:14px;font-weight:600}
+.bf-clock{font:700 clamp(28px, 5.8vh, 40px)/1 var(--f-display);letter-spacing:-.02em}
+.bf-hint{display:inline-flex;align-items:center;gap:6px;font-size:14px;font-weight:500}
+.bf-hint svg{width:15px;height:15px;flex:none}
+.bf-note{font-size:12.5px;opacity:.85}
+.bf.is-lit{background:var(--feed-lit);color:var(--on-feed);box-shadow:0 0 0 5px var(--glow-feed), 0 0 34px var(--glow-feed);animation:glow-f 3.6s ease-in-out infinite}
+@keyframes glow-f{50%{box-shadow:0 0 0 2px var(--glow-feed), 0 0 16px var(--glow-feed)}}
+.dp{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;padding:8px 4px;font-size:15px;font-weight:500}
+.dp svg{width:26px;height:26px}
+.dp-wet{background:var(--wet-fill);color:var(--wet-ink);border-radius:22px 6px 6px 22px}
+.dp-dirty{background:var(--dirty-fill);color:var(--dirty-ink);border-radius:6px}
+.dp-both{background:var(--raise);color:var(--ink);border-radius:6px 22px 22px 6px}
+.ico-pair{display:flex;gap:2px}
+.ico-pair svg{width:21px;height:21px}
+.ic-wet{color:var(--wet)}.ic-dirty{color:var(--dirty)}
+.sl,.bt{display:flex;align-items:center;justify-content:center;gap:12px;padding:8px 12px;border-radius:22px;font-size:15px;font-weight:500;text-align:left}
+.sl svg,.bt svg{width:26px;height:26px;flex:none}
+.sl{background:var(--sleep-fill);color:var(--sleep-ink)}
+.sl.is-lit{background:var(--sleep-lit);color:var(--on-sleep);box-shadow:0 0 0 5px var(--glow-sleep), 0 0 34px var(--glow-sleep);animation:glow-s 3.6s ease-in-out infinite}
+@keyframes glow-s{50%{box-shadow:0 0 0 2px var(--glow-sleep), 0 0 16px var(--glow-sleep)}}
+.bt{background:var(--milk-fill);color:var(--milk-ink)}
+.btn-text{display:flex;flex-direction:column;line-height:1.25;min-width:0}
+.btn-sub{font-size:12.5px;opacity:.85}
+
+/* Bottom bar */
+.bar{display:grid;grid-template-columns:repeat(3, minmax(0,1fr));gap:4px;padding:4px;border-radius:18px;background:var(--raise)}
+.bar-btn{display:flex;align-items:center;justify-content:center;gap:8px;min-width:0;border:0;border-radius:14px;background:transparent;color:var(--ink);font-size:14px;font-weight:500}
+.bar-btn svg{width:20px;height:20px;flex:none;color:var(--muted)}
+.bar-btn:active{background:var(--raise-2)}
+
+/* Toast sits exactly over the bottom bar, so it never covers a control; tap the text to dismiss */
+.toast{position:fixed;z-index:50;left:max(16px, env(safe-area-inset-left, 0px));right:max(16px, env(safe-area-inset-right, 0px));bottom:calc(env(safe-area-inset-bottom, 0px) + 10px);
+  height:var(--bar-h);max-width:528px;margin:0 auto;display:flex;align-items:center;gap:2px;padding:0 6px 0 16px;border-radius:18px;background:var(--toast);color:var(--toast-ink);box-shadow:var(--shadow);font-size:14px}
+.toast-msg{flex:1;min-width:0;line-height:1.3;cursor:pointer}
+.toast button{flex:none;height:44px;border:0;border-radius:12px;padding:0 12px;background:transparent;color:var(--toast-act);font-weight:600}
+.toast.is-in{animation:rise .18s ease-out}
+@keyframes rise{from{transform:translateY(10px);opacity:0}}
+
+/* Log screen */
+.logview{position:fixed;inset:0;z-index:30;background:var(--bg);display:flex;flex-direction:column;
+  padding-top:calc(env(safe-area-inset-top, 0px) + 14px);padding-bottom:calc(env(safe-area-inset-bottom, 0px) + 10px)}
+.logview > *{width:100%;max-width:560px;margin-inline:auto;padding-left:max(16px, env(safe-area-inset-left, 0px));padding-right:max(16px, env(safe-area-inset-right, 0px))}
+.lv-head{display:flex;flex-direction:column;gap:6px;padding-bottom:12px}
+.lv-title{font:600 22px/1.2 var(--f-display);letter-spacing:-.01em}
+.lv-stats{font-size:13.5px;color:var(--muted);max-width:62ch}
+.lv-stats b{color:var(--ink);font-weight:600}
+.list{flex:1;min-height:0;overflow-y:auto;overscroll-behavior:contain;-webkit-overflow-scrolling:touch;border-top:1px solid var(--line)}
+.list > li + li{border-top:1px solid var(--line)}
+.row{display:grid;grid-template-columns:46px 10px minmax(0,1fr) auto;align-items:center;gap:12px;width:100%;min-height:58px;padding:10px 2px;border:0;background:transparent;text-align:left}
+button.row:active{background:var(--raise)}
+.row-time{font-size:14px;font-weight:600;color:var(--muted)}
+.row-dot{width:10px;height:10px;border-radius:50%}
+.k-feed .row-dot{background:var(--feed)}.k-wet .row-dot{background:var(--wet)}.k-dirty .row-dot{background:var(--dirty)}
+.k-both .row-dot{background:linear-gradient(90deg, var(--wet) 50%, var(--dirty) 50%)}.k-sleep .row-dot{background:var(--sleep)}
+.row-main{min-width:0;display:flex;flex-direction:column}
+.row-title{font-weight:500}
+.row-detail{font-size:13px;color:var(--muted);overflow-wrap:anywhere}
+.row-side{display:flex;align-items:center;gap:10px}
+.row-meta{font-size:13.5px;font-weight:600}
+.who-badge{width:22px;height:22px;flex:none;border-radius:50%;display:grid;place-items:center;font-size:11px;font-weight:600;background:var(--raise-2);color:var(--ink)}
+.who-badge.p1{background:var(--ink);color:var(--bg)}
+.row-live .row-title{color:var(--feed)}
+.row-live.k-sleep .row-title{color:var(--sleep)}
+.empty{padding:20px 2px;display:flex;flex-direction:column;gap:8px;font-size:14px;color:var(--muted);max-width:52ch}
+.empty-title{font-weight:600;color:var(--ink)}
+.lv-bar{display:flex;align-items:center;gap:6px;height:var(--bar-h);margin-top:10px}
+.lv-day{flex:1;min-width:0;text-align:center;font-weight:600}
+.sq-btn{width:48px;height:48px;flex:none;display:grid;place-items:center;border:0;border-radius:14px;background:var(--raise);color:var(--ink)}
+.sq-btn svg{width:20px;height:20px}
+.txt-btn{height:48px;flex:none;display:inline-flex;align-items:center;gap:6px;border:0;border-radius:14px;padding:0 14px;background:var(--raise);color:var(--ink);font-size:14px;font-weight:500}
+.txt-btn svg{width:18px;height:18px}
+
+/* Sheets */
+.scrim{position:fixed;inset:0;z-index:40;background:var(--scrim)}
+.sheet{position:fixed;left:0;right:0;bottom:0;z-index:41;max-width:560px;margin:0 auto;max-height:90%;overflow-y:auto;display:flex;flex-direction:column;gap:16px;
+  background:var(--raise);color:var(--ink);border-radius:26px 26px 0 0;box-shadow:var(--shadow);
+  padding-top:20px;padding-bottom:calc(14px + env(safe-area-inset-bottom, 0px));padding-left:max(18px, env(safe-area-inset-left, 0px));padding-right:max(18px, env(safe-area-inset-right, 0px))}
+.sheet:focus{outline:none}
+.sheet.is-open{animation:sheetin .2s ease-out}
+@keyframes sheetin{from{transform:translateY(28px);opacity:.6}}
+.sheet-title{font:600 20px/1.25 var(--f-display);letter-spacing:-.01em}
+.seg{display:flex;gap:4px;padding:4px;border-radius:14px;background:var(--bg)}
+.seg button{flex:1;min-width:0;height:44px;border:0;border-radius:10px;background:transparent;color:var(--muted);font-size:14px;font-weight:500}
+.seg button[aria-pressed="true"]{background:var(--raise-2);color:var(--ink);font-weight:600}
+.form{display:flex;flex-direction:column;gap:16px}
+.field{display:flex;flex-direction:column;gap:8px}
+.field > label,.field-label{font-size:13.5px;color:var(--muted)}
+.field-row{display:flex;align-items:center;gap:12px}
+input[type="number"],input[type="text"],input[type="time"],input[type="date"],input[type="email"],input[type="password"]{height:48px;min-width:0;border:1px solid var(--line);border-radius:12px;background:var(--bg);padding:0 14px;font-size:16px;color:var(--ink)}
+.stepper{display:flex;align-items:center;gap:10px}
+.stepper button{width:52px;height:52px;flex:none;border:0;border-radius:14px;background:var(--raise-2);font-size:24px;line-height:1}
+.stepper input{width:92px;text-align:center}
+.unit{font-size:14px;color:var(--muted)}
+.ml-wrap{display:grid;grid-template-columns:auto minmax(0,1fr);gap:16px;align-items:center}
+.gauge{width:64px;height:120px}
+.g-body{fill:var(--bg);stroke:var(--muted);stroke-width:1.6}
+.g-milk{fill:var(--milk)}
+.g-tick{stroke:var(--muted);stroke-width:1.2}
+.g-lab{font:500 10px var(--f-body);fill:var(--muted)}
+.ml-side{display:flex;flex-direction:column;gap:12px;min-width:0}
+.presets{display:flex;flex-wrap:wrap;gap:8px}
+.preset{height:44px;min-width:58px;border:0;border-radius:12px;padding:0 10px;background:var(--milk-fill);color:var(--milk-ink);font-weight:600}
+.form-err{font-size:13.5px;color:var(--danger)}
+.actions{display:flex;align-items:center;gap:10px}
+.btn{height:52px;border:0;border-radius:14px;padding:0 20px;font-size:15px;font-weight:600}
+.btn-quiet{background:var(--raise-2);color:var(--ink);margin-left:auto}
+.btn-save{background:var(--ink);color:var(--bg);min-width:108px}
+.btn-danger{background:transparent;color:var(--danger);box-shadow:inset 0 0 0 1.5px currentColor}
+.btn-danger.is-armed{background:var(--danger);color:var(--bg);box-shadow:none}
+.help{display:flex;flex-direction:column;gap:6px;border-top:1px solid var(--line);padding-top:14px;font-size:13.5px;color:var(--muted);max-width:62ch}
+.help h3{font-size:14px;font-weight:600;color:var(--ink);margin-top:6px}
+.account{display:flex;align-items:center;gap:12px;font-size:13.5px;color:var(--muted)}
+.account span{flex:1;min-width:0;overflow-wrap:anywhere}
+
+/* Sign-in and setup screens: the form sits low, inside thumb reach */
+.gate{position:fixed;inset:0;z-index:60;background:var(--bg);display:flex;flex-direction:column;justify-content:flex-end;
+  padding-top:env(safe-area-inset-top, 0px);padding-bottom:calc(env(safe-area-inset-bottom, 0px) + 20px)}
+.gate-inner{width:100%;max-width:440px;margin:0 auto;display:flex;flex-direction:column;gap:18px;
+  padding-left:max(20px, env(safe-area-inset-left, 0px));padding-right:max(20px, env(safe-area-inset-right, 0px))}
+.gate-mark{width:72px;height:72px}
+.gate-title{font:700 30px/1.1 var(--f-display);letter-spacing:-.02em}
+.gate-sub{color:var(--muted);font-size:14.5px;max-width:40ch}
+.gate .btn-save{width:100%}
+
+.bf:focus-visible,.dp:focus-visible,.sl:focus-visible,.bt:focus-visible,.bar-btn:focus-visible,.row:focus-visible,.sq-btn:focus-visible,.txt-btn:focus-visible,
+.seg button:focus-visible,.stepper button:focus-visible,.preset:focus-visible,.btn:focus-visible,.toast button:focus-visible{outline:3px solid var(--ink);outline-offset:2px}
+input:focus-visible{outline:2px solid var(--feed);outline-offset:1px}
+
+@media (max-height:640px){
+  .app{gap:10px}
+  .ring{width:clamp(100px, 28vw, 124px)}
+  .controls{gap:10px}
+}
+@media (prefers-reduced-motion: reduce){
+  *,*::before,*::after{animation:none !important;transition:none !important}
+}
+</style>
+</head>
+<body>
+<div class="app" id="app">
+  <section class="status" id="status" aria-label="Tình trạng của bé"></section>
+  <section class="controls" id="controls" aria-label="Ghi nhanh"></section>
+  <nav class="bar" aria-label="Điều hướng">
+    <button type="button" class="bar-btn" data-act="log"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 6.5h11M8 12h11M8 17.5h11" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><circle cx="4.2" cy="6.5" r="1.3" fill="currentColor"/><circle cx="4.2" cy="12" r="1.3" fill="currentColor"/><circle cx="4.2" cy="17.5" r="1.3" fill="currentColor"/></svg>Nhật ký</button>
+    <button type="button" class="bar-btn" data-act="add" id="bar-add"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5.5v13M5.5 12h13" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg>Ghi bù</button>
+    <button type="button" class="bar-btn" data-act="settings"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="7.3" fill="none" stroke="currentColor" stroke-width="3.2" stroke-dasharray="2.87 2.87"/><circle cx="12" cy="12" r="5.7" fill="none" stroke="currentColor" stroke-width="1.8"/><circle cx="12" cy="12" r="2" fill="currentColor"/></svg>Thông tin</button>
+  </nav>
+</div>
+
+<div class="logview" id="logview" role="dialog" aria-modal="true" aria-labelledby="lv-title" hidden>
+  <header class="lv-head"><h2 class="lv-title" id="lv-title">Nhật ký</h2><p class="lv-stats" id="lvstats"></p></header>
+  <ol class="list" id="list"></ol>
+  <div class="lv-bar" id="lvbar"></div>
+</div>
+
+<section class="gate" id="signin" aria-labelledby="si-title" hidden>
+  <div class="gate-inner">
+    <svg class="gate-mark" viewBox="0 0 72 72" aria-hidden="true"><path d="M34 10A24 26 0 0 0 34 62Z" fill="var(--feed)"/><path d="M38 10A24 26 0 0 1 38 62Z" fill="var(--feed-ink)"/></svg>
+    <h1 class="gate-title" id="si-title">Sổ của bé</h1>
+    <p class="gate-sub">Đăng nhập bằng tài khoản bố hoặc mẹ đã được thêm vào sổ. Chỉ cần làm một lần trên mỗi điện thoại.</p>
+    <form class="form" id="signin-form" novalidate>
+      <div class="field"><label for="si-email">Email</label><input id="si-email" type="email" autocomplete="username" inputmode="email" required></div>
+      <div class="field"><label for="si-pass">Mật khẩu</label><input id="si-pass" type="password" autocomplete="current-password" required></div>
+      <p class="form-err" id="si-err" hidden></p>
+      <button type="submit" class="btn btn-save" id="si-btn">Đăng nhập</button>
+    </form>
+  </div>
+</section>
+
+<section class="gate" id="setup" hidden>
+  <div class="gate-inner">
+    <h1 class="gate-title">Chưa có cấu hình</h1>
+    <p class="gate-sub">Dán firebaseConfig của project vào file config.js rồi tải lại trang.</p>
+  </div>
+</section>
+
+<div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
+<div class="scrim" id="scrim" hidden></div>
+<div class="sheet" id="sheet" role="dialog" aria-modal="true" aria-label="Chi tiết" tabindex="-1" hidden></div>
+<script type="module" src="./app.js"></script>
+</body>
+</html>

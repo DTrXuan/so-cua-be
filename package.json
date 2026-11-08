@@ -1,0 +1,12 @@
+{
+  "name": "so-cua-be",
+  "private": true,
+  "description": "Sổ theo dõi bé: ghi bú, tã, ngủ bằng 1 chạm, đồng bộ qua Firebase",
+  "scripts": {
+    "build:firebase": "esbuild scripts/firebase-entry.js --bundle --format=esm --minify --target=es2020 --outfile=firebase.js"
+  },
+  "devDependencies": {
+    "esbuild": "0.28.2",
+    "firebase": "13.1.0"
+  }
+}
