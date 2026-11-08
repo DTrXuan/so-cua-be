@@ -1,6 +1,6 @@
 // Service worker: serve the app from the phone's cache at once, refresh files in the background.
 // Bump VERSION on every deploy so phones pick up the new files on their next open.
-const VERSION = 'v2';
+const VERSION = 'v3';
 const CACHE = 'so-cua-be-' + VERSION;
 const ASSETS = [
   './',
@@ -26,7 +26,7 @@ const ASSETS = [
 ];
 
 self.addEventListener('install', event => {
-  event.waitUntil(caches.open(CACHE).then(c => c.addAll(ASSETS)).then(() => self.skipWaiting()));
+  event.waitUntil(caches.open(CACHE).then(c => c.addAll(ASSETS.map(u => new Request(u, { cache: 'reload' })))).then(() => self.skipWaiting()));
 });
 
 self.addEventListener('activate', event => {
@@ -44,7 +44,7 @@ self.addEventListener('fetch', event => {
   event.respondWith((async () => {
     const cache = await caches.open(CACHE);
     const hit = await cache.match(req, { ignoreSearch: true });
-    const refresh = fetch(req).then(res => {
+    const refresh = fetch(req, { cache: 'no-cache' }).then(res => {
       if (res && res.ok) return cache.put(req, res.clone()).then(() => res);
       return res;
     }).catch(() => hit);

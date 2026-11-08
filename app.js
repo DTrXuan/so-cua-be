@@ -14,6 +14,7 @@ const TYPES = ['breast', 'bottle', 'diaper', 'sleep'];
 const PRESETS = [30, 60, 90, 120];
 const WD = ['CN', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7'];
 const LS_SIGNED = 'socuabe.signed';
+const APP_VERSION = 'v3';
 
 const svg = inner => `<svg viewBox="0 0 24 24" aria-hidden="true">${inner}</svg>`;
 const I = {
@@ -685,7 +686,7 @@ function openSettings() {
       </form>
     </details>
     <div class="help">
-      <div class="account"><span>Đang đăng nhập: ${esc(S.email || '')}</span><button type="button" class="btn btn-danger" data-act="signout">Đăng xuất</button></div>
+      <div class="account"><span>Đang đăng nhập: ${esc(S.email || '')}<br>Phiên bản ${APP_VERSION}</span><button type="button" class="btn btn-danger" data-act="signout">Đăng xuất</button></div>
       <h3>Mở bằng một chạm</h3>
       <p>Trên iPhone: mở trang trong Safari, bấm nút Chia sẻ rồi chọn Thêm vào MH chính. Trên Android: mở trong Chrome, bấm menu rồi chọn Cài đặt ứng dụng. Từ lần sau, mở bằng icon trên màn hình chính sẽ không cần tải lại từ mạng.</p>
       <h3>Đọc vòng 24 giờ</h3>
@@ -887,5 +888,13 @@ function boot() {
 boot();
 
 if ('serviceWorker' in navigator) {
+  // When a newer version takes over, reload once so the new files show on this open instead of the next.
+  const hadController = !!navigator.serviceWorker.controller;
+  let reloading = false;
+  navigator.serviceWorker.addEventListener('controllerchange', () => {
+    if (!hadController || reloading || $('#sheet').hidden === false) return;
+    reloading = true;
+    location.reload();
+  });
   window.addEventListener('load', () => { navigator.serviceWorker.register('./sw.js').catch(() => {}); });
 }
