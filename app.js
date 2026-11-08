@@ -14,7 +14,7 @@ const TYPES = ['breast', 'bottle', 'diaper', 'sleep'];
 const PRESETS = [30, 60, 90, 120];
 const WD = ['CN', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7'];
 const LS_SIGNED = 'socuabe.signed';
-const APP_VERSION = 'v3';
+const APP_VERSION = 'v4';
 
 const svg = inner => `<svg viewBox="0 0 24 24" aria-hidden="true">${inner}</svg>`;
 const I = {
@@ -252,12 +252,7 @@ function logDiaper(d) {
 }
 function tapBottle() {
   if (!canAct()) return;
-  const lb = lastBottle();
-  if (!lb) { openEdit(null, 'bottle'); return; }
-  const ev = mkEv({ id: newId('m'), t: 'bottle', at: Date.now(), ml: lb.ml, k: lb.k === 'f' ? 'f' : 'bm' });
-  saveEv(ev);
-  buzz();
-  toast(`Đã ghi bình ${lb.ml}ml lúc ${hm(ev.at)}`, { undo: () => removeEv(ev), edit: ev });
+  openEdit(null, 'bottle');   // always confirm amount and milk type; defaults come from the last bottle
 }
 
 /* ---------- rendering ---------- */
@@ -360,7 +355,7 @@ function renderControls() {
       ${glyph(k)}<span class="bf-name">bú ${SIDE[k]}</span>${lastSide === k ? '<span class="bf-last">lần trước</span>' : ''}</button>`;
   };
   const lb = lastBottle();
-  const bottleSub = lb ? `${lb.ml}ml ${KIND[lb.k] || 'sữa'}` : 'chọn lượng sữa';
+  const bottleSub = lb ? `lần trước ${lb.ml}ml` : 'chọn lượng sữa';
   const sleepBtn = s
     ? `<button type="button" class="sl is-lit" data-act="sleep" aria-label="Bé dậy, dừng giờ ngủ">${I.sun}<span class="btn-text"><span>Bé dậy</span><span class="btn-sub digits sm" data-clock="${s.start}"></span></span></button>`
     : `<button type="button" class="sl" data-act="sleep" aria-label="Bắt đầu giờ ngủ">${I.moon}<span class="btn-text"><span>Ngủ</span><span class="btn-sub">chạm khi bé ngủ</span></span></button>`;
@@ -582,7 +577,7 @@ function editHTML() {
       ${fields}
       <p class="form-err" id="f-err" hidden></p>
       <div class="actions">${sh.isNew ? '' : '<button type="button" class="btn btn-danger" data-act="del">Xóa</button>'}
-        <button type="button" class="btn btn-quiet" data-act="cancel">Hủy</button><button type="submit" class="btn btn-save">Lưu</button></div>
+        <button type="button" class="btn btn-quiet" data-act="cancel">Hủy</button><button type="submit" class="btn btn-save">${sh.isNew && t === 'bottle' ? 'Ghi bình' : 'Lưu'}</button></div>
     </form>`;
 }
 function readDraft() {
@@ -643,7 +638,7 @@ function submitEdit() {
   closeSheet();
   buzz();
   if (orig) toast('Đã lưu thay đổi', { undo: () => saveEv(orig, dayKey(ev.at)) });
-  else toast(`Đã ghi ${evTitle(ev).toLowerCase()} lúc ${hm(ev.at)}`, { undo: () => removeEv(ev), edit: ev });
+  else toast(ev.t === 'bottle' ? `Đã ghi bình ${ev.ml}ml lúc ${hm(ev.at)}` : `Đã ghi ${evTitle(ev).toLowerCase()} lúc ${hm(ev.at)}`, { undo: () => removeEv(ev), edit: ev });
 }
 function deleteFromSheet(btn) {
   const sh = S.sheet;

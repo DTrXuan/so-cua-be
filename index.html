@@ -165,13 +165,13 @@ svg{display:block}
 .bar-btn svg{width:20px;height:20px;flex:none;color:var(--muted)}
 .bar-btn:active{background:var(--raise-2)}
 
-/* Toast sits exactly over the bottom bar, so it never covers a control; tap the text to dismiss */
-.toast{position:fixed;z-index:50;left:max(16px, env(safe-area-inset-left, 0px));right:max(16px, env(safe-area-inset-right, 0px));bottom:calc(env(safe-area-inset-bottom, 0px) + 10px);
+/* Toast drops over the read-only top zone, so it never covers a control or the menu; tap the text to dismiss */
+.toast{position:fixed;z-index:50;left:max(16px, env(safe-area-inset-left, 0px));right:max(16px, env(safe-area-inset-right, 0px));top:calc(env(safe-area-inset-top, 0px) + 10px);
   height:var(--bar-h);max-width:528px;margin:0 auto;display:flex;align-items:center;gap:2px;padding:0 6px 0 16px;border-radius:18px;background:var(--toast);color:var(--toast-ink);box-shadow:var(--shadow);font-size:14px}
 .toast-msg{flex:1;min-width:0;line-height:1.3;cursor:pointer}
 .toast button{flex:none;height:44px;border:0;border-radius:12px;padding:0 12px;background:transparent;color:var(--toast-act);font-weight:600}
 .toast.is-in{animation:rise .18s ease-out}
-@keyframes rise{from{transform:translateY(10px);opacity:0}}
+@keyframes rise{from{transform:translateY(-10px);opacity:0}}
 
 /* Log screen */
 .logview{position:fixed;inset:0;z-index:30;background:var(--bg);display:flex;flex-direction:column;
