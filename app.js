@@ -14,7 +14,10 @@ const TYPES = ['breast', 'bottle', 'diaper', 'sleep'];
 const PRESETS = [30, 60, 90, 120];
 const WD = ['CN', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7'];
 const LS_SIGNED = 'socuabe.signed';
-const APP_VERSION = 'v5';
+const APP_VERSION = 'v6';
+// Sleep tracking is hidden for now (set to true to bring it back; its code is kept).
+const SHOW_SLEEP = false;
+const PURGE_SLEEP_KEY = 'socuabe.purge.sleep.v1';
 
 const svg = inner => `<svg viewBox="0 0 24 24" aria-hidden="true">${inner}</svg>`;
 const I = {
@@ -137,7 +140,10 @@ function latest(evs, pred, field = 'at') {
   for (const e of evs) if (pred(e) && num(e[field]) !== null && (!best || e[field] > best[field])) best = e;
   return best;
 }
-function act(kind) { return S.pendActive[kind] ? S.pendActive[kind].val : S.active[kind]; }
+function act(kind) {
+  if (kind === 'sleep' && !SHOW_SLEEP) return null;
+  return S.pendActive[kind] ? S.pendActive[kind].val : S.active[kind];
+}
 function lastBreastSide() {
   const e = latest(recentEvents(), x => x.t === 'breast' && Array.isArray(x.segs) && x.segs.length);
   if (!e) return null;
@@ -272,11 +278,11 @@ function ringSVG(evs, f, s, now) {
     return `M${x1} ${y1}A${r} ${r} 0 ${d > 180 ? 1 : 0} 1 ${x2} ${y2}`;
   };
   const op = ts => (0.32 + 0.68 * Math.max(0, Math.min(1, 1 - (now - ts) / DAY))).toFixed(2);
-  let o = `<circle cx="80" cy="80" r="63" class="rg-track" stroke-width="12"/><circle cx="80" cy="80" r="47" class="rg-track" stroke-width="10"/>`;
+  let o = `<circle cx="80" cy="80" r="63" class="rg-track" stroke-width="12"/>${SHOW_SLEEP ? '<circle cx="80" cy="80" r="47" class="rg-track" stroke-width="10"/>' : ''}`;
   for (let h = 0; h < 24; h++) { const major = h % 6 === 0; const [x1, y1] = pt(h * 15, major ? 70.5 : 72.5), [x2, y2] = pt(h * 15, 75.5); o += `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" class="rg-tick${major ? ' is-major' : ''}"/>`; }
   [['0h', 0], ['6h', 90], ['12h', 180], ['18h', 270]].forEach(([t, a]) => { const [x, y] = pt(a, 85); o += `<text x="${x}" y="${y}" class="rg-label" text-anchor="middle" dominant-baseline="central">${t}</text>`; });
   for (const e of evs) {
-    if (e.t === 'sleep' && num(e.end) !== null && e.end > from) o += `<path d="${arc(ang(Math.max(e.at, from)), ang(e.end), 47)}" class="rg-sleep" stroke-width="10" opacity="${op(e.end)}"/>`;
+    if (SHOW_SLEEP && e.t === 'sleep' && num(e.end) !== null && e.end > from) o += `<path d="${arc(ang(Math.max(e.at, from)), ang(e.end), 47)}" class="rg-sleep" stroke-width="10" opacity="${op(e.end)}"/>`;
   }
   if (s) o += `<path d="${arc(ang(Math.max(s.start, from)), ang(now), 47)}" class="rg-sleep" stroke-width="10"/>`;
   for (const e of evs) {
@@ -292,7 +298,7 @@ function ringSVG(evs, f, s, now) {
   const an = ang(now), [hx, hy] = pt(an, 77), [ix, iy] = pt(an, 22);
   o += `<line x1="${ix}" y1="${iy}" x2="${hx}" y2="${hy}" class="rg-now"/><circle cx="${hx}" cy="${hy}" r="2.8" class="rg-now-dot"/>`;
   o += `<text x="80" y="80" class="rg-center" text-anchor="middle" dominant-baseline="central">24 giờ</text>`;
-  return `<svg class="ring" viewBox="-16 -16 192 192" role="img" aria-label="Vòng 24 giờ qua: cữ bú ở vòng ngoài, giấc ngủ ở vòng giữa, lần thay tã ở vòng trong, kim chỉ giờ hiện tại">${o}</svg>`;
+  return `<svg class="ring" viewBox="-16 -16 192 192" role="img" aria-label="Vòng 24 giờ qua: cữ bú ở vòng ngoài${SHOW_SLEEP ? ', giấc ngủ ở vòng giữa' : ''}, lần thay tã ở vòng trong, kim chỉ giờ hiện tại">${o}</svg>`;
 }
 
 function renderStatus() {
@@ -335,7 +341,7 @@ function renderStatus() {
     ${banner ? `<p class="banner">${esc(banner)}</p>` : ''}
     <div class="readout">${read}</div>
     ${ringSVG(evs, f, s, now)}
-    <ul class="vitals">${diaperLi}${sleepLi}</ul>`);
+    <ul class="vitals">${diaperLi}${SHOW_SLEEP ? sleepLi : ''}</ul>`);
 }
 
 function renderControls() {
@@ -366,7 +372,7 @@ function renderControls() {
       <button type="button" class="dp dp-dirty" data-act="diaper" data-d="dirty" aria-label="Ghi tã bẩn">${I.mound}<span>Bẩn</span></button>
       <button type="button" class="dp dp-both" data-act="diaper" data-d="both" aria-label="Ghi tã vừa ướt vừa bẩn"><span class="ico-pair"><span class="ic-wet">${I.drop}</span><span class="ic-dirty">${I.mound}</span></span><span>Cả hai</span></button>
     </div>
-    <div class="duo">${sleepBtn}
+    <div class="duo${SHOW_SLEEP ? '' : ' one'}">${SHOW_SLEEP ? sleepBtn : ''}
       <button type="button" class="bt" data-act="bottle" aria-label="Ghi bú bình, ${esc(bottleSub)}">${I.bottle}<span class="btn-text"><span>Bú bình</span><span class="btn-sub">${esc(bottleSub)}</span></span></button>
     </div>`);
   el.classList.toggle('is-off', !S.user || S.denied);
@@ -382,7 +388,7 @@ function statsFor(evs, from, to, live) {
     if (e.t === 'breast' && inWin) { st.feeds++; st.breastMs += breastTotal(e); }
     else if (e.t === 'bottle' && inWin) { st.feeds++; st.ml += num(e.ml) || 0; }
     else if (e.t === 'diaper' && inWin) { if (e.d === 'wet' || e.d === 'both') st.wet++; if (e.d === 'dirty' || e.d === 'both') st.dirty++; }
-    else if (e.t === 'sleep' && num(e.end) !== null) { const a = Math.max(e.at, from), b = Math.min(e.end, to); if (b > a) st.sleepMs += b - a; }
+    else if (SHOW_SLEEP && e.t === 'sleep' && num(e.end) !== null) { const a = Math.max(e.at, from), b = Math.min(e.end, to); if (b > a) st.sleepMs += b - a; }
   }
   if (live) {
     const f = act('feed'), s = act('sleep'), now = Date.now();
@@ -393,7 +399,7 @@ function statsFor(evs, from, to, live) {
 }
 function statsLine(st, scope) {
   const sub = [st.breastMs ? `mẹ <b>${dur(st.breastMs)}</b>` : '', st.ml ? `bình <b>${st.ml}ml</b>` : ''].filter(Boolean).join(', ');
-  return `${scope}: <b>${st.feeds}</b> cữ bú${sub ? ` (${sub})` : ''}, <b>${st.wet}</b> tã ướt, <b>${st.dirty}</b> tã bẩn, ngủ <b>${st.sleepMs ? dur(st.sleepMs) : '0p'}</b>.`;
+  return `${scope}: <b>${st.feeds}</b> cữ bú${sub ? ` (${sub})` : ''}, <b>${st.wet}</b> tã ướt, <b>${st.dirty}</b> tã bẩn${SHOW_SLEEP ? `, ngủ <b>${st.sleepMs ? dur(st.sleepMs) : '0p'}</b>` : ''}.`;
 }
 function fetchDay(k) {
   if (!fb || !S.user || S.loadingDay[k]) return;
@@ -437,7 +443,7 @@ function renderLogView() {
     : statsFor([...eventsOf(k), ...eventsOf(shiftKey(k, -1))], keyDate(k).getTime(), keyDate(shiftKey(k, 1)).getTime(), false);
   setHTML($('#lvstats'), statsLine(st, isToday ? '24 giờ qua' : `Cả ngày ${dayLabel(k)}`));
 
-  const evs = eventsOf(k).sort((a, b) => b.at - a.at);
+  const evs = eventsOf(k).filter(e => SHOW_SLEEP || e.t !== 'sleep').sort((a, b) => b.at - a.at);
   const starts = [...new Set([...recentEvents(), ...evs, ...eventsOf(shiftKey(k, -1))]
     .filter(e => e.t === 'breast' || e.t === 'bottle').map(e => e.at))].sort((a, b) => a - b);
   const showWho = new Set(evs.map(e => e.by).filter(Boolean)).size > 1;
@@ -554,7 +560,7 @@ function openEdit(ev, fixedType) {
 function editHTML() {
   const sh = S.sheet, d = sh.draft, t = d.t;
   const title = !sh.isNew ? `${evTitle(sh.orig)} lúc ${hm(sh.orig.at)}` : sh.fixed ? 'Bú bình' : 'Ghi bù';
-  const typeSeg = sh.isNew && !sh.fixed ? `<div class="seg" role="group" aria-label="Loại ghi chép">${TYPES.map(x =>
+  const typeSeg = sh.isNew && !sh.fixed ? `<div class="seg" role="group" aria-label="Loại ghi chép">${TYPES.filter(x => SHOW_SLEEP || x !== 'sleep').map(x =>
     `<button type="button" data-act="etype" data-t="${x}" aria-pressed="${x === t}">${x === 'diaper' ? 'Tã' : evTitle({ t: x })}</button>`).join('')}</div>` : '';
   let fields = '';
   if (t === 'breast') fields = stepper('f-L', 'Bên trái', d.L, 'phút', 5) + stepper('f-R', 'Bên phải', d.R, 'phút', 5);
@@ -685,7 +691,7 @@ function openSettings() {
       <h3>Mở bằng một chạm</h3>
       <p>Trên iPhone: mở trang trong Safari, bấm nút Chia sẻ rồi chọn Thêm vào MH chính. Trên Android: mở trong Chrome, bấm menu rồi chọn Cài đặt ứng dụng. Từ lần sau, mở bằng icon trên màn hình chính sẽ không cần tải lại từ mạng.</p>
       <h3>Đọc vòng 24 giờ</h3>
-      <p>Vòng ngoài là các cữ bú, vòng giữa là giấc ngủ, chấm bên trong là lần thay tã. Kim chỉ giờ hiện tại; mục càng cũ càng mờ.</p>
+      <p>Vòng ngoài là các cữ bú${SHOW_SLEEP ? ', vòng giữa là giấc ngủ' : ''}, chấm bên trong là lần thay tã. Kim chỉ giờ hiện tại; mục càng cũ càng mờ.</p>
       <h3>Khi mất mạng</h3>
       <p>Vẫn ghi bình thường. Dữ liệu lưu trên máy và tự gửi lên khi có mạng lại.</p>
     </div>`);
@@ -711,13 +717,13 @@ function submitImport() {
   let n = 0;
   for (const raw of (Array.isArray(data && data.events) ? data.events : [])) {
     const ev = mkEv({ ...raw, by: S.uid || null });
-    if (!validEv(ev) || (num(ev.end) !== null && ev.end < ev.at)) continue;
+    if (!validEv(ev) || (ev.t === 'sleep' && !SHOW_SLEEP) || (num(ev.end) !== null && ev.end < ev.at)) continue;
     saveEv(ev);
     n++;
   }
   const extra = [];
   const a = (data && data.active) || {};
-  const sl = validSleep(a.sleep);
+  const sl = SHOW_SLEEP ? validSleep(a.sleep) : null;
   if (sl && !act('sleep')) { putActive('sleep', { start: sl.start, by: S.uid || null }); extra.push('giấc ngủ đang chạy'); }
   const fd = validFeed(a.feed);
   if (fd && !act('feed')) { putActive('feed', { start: fd.start, segs: fd.segs.map(x => ({ s: x.s, a: x.a, b: num(x.b) })), by: S.uid || null }); extra.push('cữ bú đang chạy'); }
@@ -813,6 +819,20 @@ $('#signin-form').addEventListener('submit', async e => {
   finally { btn.disabled = false; btn.textContent = 'Đăng nhập'; }
 });
 
+/* ---------- one-time cleanup: delete stored sleep data (requested while sleep is hidden) ---------- */
+let purging = false;
+function purgeSleepOnce() {
+  if (SHOW_SLEEP || purging || lsGet(PURGE_SLEEP_KEY) || !S.synced || !fb) return;
+  purging = true;
+  const writes = [];
+  for (const [key, d] of Object.entries(S.days)) {
+    const ids = Object.entries((d && d.events) || {}).filter(([, e]) => e && e.t === 'sleep').map(([id]) => id);
+    if (ids.length) writes.push(setDoc(doc(fb.db, 'days', key), { events: Object.fromEntries(ids.map(id => [id, deleteField()])) }, { merge: true }));
+  }
+  writes.push(deleteDoc(doc(fb.db, 'active', 'sleep')));
+  Promise.all(writes).then(() => lsSet(PURGE_SLEEP_KEY, '1')).catch(() => {}).finally(() => { purging = false; });
+}
+
 /* ---------- data connection ---------- */
 function stopListening() { unsubs.forEach(u => { try { u(); } catch (e) {} }); unsubs = []; }
 function onErr(err) {
@@ -831,6 +851,7 @@ function startListening() {
     S.loaded = true;
     S.synced = !snap.metadata.fromCache;
     render();
+    purgeSleepOnce();
   }, onErr));
   unsubs.push(onSnapshot(collection(db, 'active'), snap => {
     const a = { feed: null, sleep: null };

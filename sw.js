@@ -1,6 +1,6 @@
 // Service worker: serve the app from the phone's cache at once, refresh files in the background.
 // Bump VERSION on every deploy so phones pick up the new files on their next open.
-const VERSION = 'v5';
+const VERSION = 'v6';
 const CACHE = 'so-cua-be-' + VERSION;
 const ASSETS = [
   './',
