@@ -676,6 +676,14 @@ function openSettings() {
       <div class="field"><label for="f-birth">Ngày sinh</label><input id="f-birth" type="date" max="${todayKey()}" value="${esc(m.birth || '')}"></div>
       <div class="actions"><button type="button" class="btn btn-quiet" data-act="cancel">Đóng</button><button type="submit" class="btn btn-save">Lưu</button></div>
     </form>
+    <details class="import">
+      <summary>Nhập dữ liệu từ bản cũ</summary>
+      <form class="form" data-form="import">
+        <div class="field"><label for="f-import">Dán đoạn dữ liệu vào đây</label><textarea id="f-import" rows="4" spellcheck="false" autocomplete="off"></textarea></div>
+        <p class="form-err" id="imp-err" hidden></p>
+        <div class="actions"><button type="submit" class="btn btn-save">Nhập</button></div>
+      </form>
+    </details>
     <div class="help">
       <div class="account"><span>Đang đăng nhập: ${esc(S.email || '')}</span><button type="button" class="btn btn-danger" data-act="signout">Đăng xuất</button></div>
       <h3>Mở bằng một chạm</h3>
@@ -695,6 +703,39 @@ function submitMeta() {
   closeSheet();
   render();
   track(setDoc(doc(fb.db, 'meta', 'baby'), { name, birth })).then(() => toast('Đã lưu thông tin bé'));
+}
+
+function submitImport() {
+  if (!canAct()) return;
+  const errEl = $('#imp-err');
+  const err = m => { errEl.textContent = m; errEl.hidden = false; };
+  let data;
+  try { data = JSON.parse(($('#f-import').value || '').trim()); }
+  catch (e) { return err('Đoạn dữ liệu không đúng định dạng. Copy lại toàn bộ đoạn được gửi.'); }
+  let n = 0;
+  for (const raw of (Array.isArray(data && data.events) ? data.events : [])) {
+    const ev = mkEv({ ...raw, by: S.uid || null });
+    if (!validEv(ev) || (num(ev.end) !== null && ev.end < ev.at)) continue;
+    saveEv(ev);
+    n++;
+  }
+  const extra = [];
+  const a = (data && data.active) || {};
+  const sl = validSleep(a.sleep);
+  if (sl && !act('sleep')) { putActive('sleep', { start: sl.start, by: S.uid || null }); extra.push('giấc ngủ đang chạy'); }
+  const fd = validFeed(a.feed);
+  if (fd && !act('feed')) { putActive('feed', { start: fd.start, segs: fd.segs.map(x => ({ s: x.s, a: x.a, b: num(x.b) })), by: S.uid || null }); extra.push('cữ bú đang chạy'); }
+  const m = data && data.meta, cur = S.meta || {};
+  if (m && typeof m.name === 'string' && !(typeof cur.name === 'string' && cur.name.trim())) {
+    const val = { name: m.name.trim().slice(0, 40), birth: /^\d{4}-\d{2}-\d{2}$/.test(m.birth || '') ? m.birth : (cur.birth || '') };
+    S.meta = val;
+    track(setDoc(doc(fb.db, 'meta', 'baby'), val));
+    extra.push('thông tin bé');
+  }
+  if (!n && !extra.length) return err('Không có gì mới để nhập.');
+  closeSheet();
+  render();
+  toast(`Đã nhập ${n} mục${extra.length ? ', ' + extra.join(', ') : ''}.`);
 }
 
 /* ---------- events ---------- */
@@ -739,6 +780,7 @@ document.addEventListener('submit', e => {
   const f = e.target.dataset.form;
   if (f === 'edit') submitEdit();
   else if (f === 'meta') submitMeta();
+  else if (f === 'import') submitImport();
 });
 document.addEventListener('keydown', e => {
   if (e.key !== 'Escape') return;
