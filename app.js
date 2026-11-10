@@ -14,7 +14,7 @@ const TYPES = ['breast', 'bottle', 'diaper', 'sleep'];
 const PRESETS = [30, 60, 90, 120];
 const WD = ['CN', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7'];
 const LS_SIGNED = 'socuabe.signed';
-const APP_VERSION = 'v6';
+const APP_VERSION = 'v7';
 // Sleep tracking is hidden for now (set to true to bring it back; its code is kept).
 const SHOW_SLEEP = false;
 const PURGE_SLEEP_KEY = 'socuabe.purge.sleep.v1';
@@ -678,6 +678,16 @@ function openSettings() {
       <div class="field"><label for="f-birth">Ngày sinh</label><input id="f-birth" type="date" max="${todayKey()}" value="${esc(m.birth || '')}"></div>
       <div class="actions"><button type="button" class="btn btn-quiet" data-act="cancel">Đóng</button><button type="submit" class="btn btn-save">Lưu</button></div>
     </form>
+    <details class="import" id="export-box">
+      <summary>Xuất dữ liệu</summary>
+      <div class="form">
+        <p class="hint">Lấy toàn bộ ghi chép dưới dạng văn bản để gửi đi phân tích. Không kèm email hay tài khoản.</p>
+        <div class="actions"><button type="button" class="btn btn-save" data-act="export-load" id="export-load">Lấy dữ liệu</button></div>
+        <textarea id="f-export" rows="4" readonly hidden></textarea>
+        <p class="hint" id="export-info" hidden></p>
+        <div class="actions" id="export-copy-row" hidden><button type="button" class="btn btn-save" data-act="export-copy">Sao chép</button></div>
+      </div>
+    </details>
     <details class="import">
       <summary>Nhập dữ liệu từ bản cũ</summary>
       <form class="form" data-form="import">
@@ -705,6 +715,52 @@ function submitMeta() {
   closeSheet();
   render();
   track(setDoc(doc(fb.db, 'meta', 'baby'), { name, birth })).then(() => toast('Đã lưu thông tin bé'));
+}
+
+/* ---------- export: every stored day, compact, no account details ---------- */
+function exportLoad(btn) {
+  if (!fb || !S.user) { toast('Đang kết nối, thử lại sau giây lát.'); return; }
+  btn.disabled = true; btn.textContent = 'Đang lấy…';
+  let unsub = null, done = false;
+  const finish = (text, info) => {
+    if (done) return; done = true;
+    try { unsub && unsub(); } catch (e) {}
+    btn.disabled = false; btn.textContent = 'Lấy lại';
+    const ta = $('#f-export'), inf = $('#export-info');
+    if (!ta) return;
+    if (text) { ta.value = text; ta.hidden = false; $('#export-copy-row').hidden = false; }
+    inf.textContent = info; inf.hidden = false;
+  };
+  const timer = setTimeout(() => finish('', 'Chưa lấy được dữ liệu. Kiểm tra mạng rồi thử lại.'), 15000);
+  unsub = onSnapshot(collection(fb.db, 'days'), snap => {
+    if (snap.metadata.fromCache && navigator.onLine) return;   // wait for the server copy
+    clearTimeout(timer);
+    const events = [];
+    snap.docs.forEach(d => {
+      const ev = (d.data() && d.data().events) || {};
+      for (const e of Object.values(ev)) {
+        if (!validEv(e)) continue;
+        const o = { t: e.t, at: e.at };
+        if (num(e.end) !== null) o.end = e.end;
+        if (e.t === 'bottle') { o.ml = e.ml; o.k = e.k; }
+        if (e.t === 'diaper') o.d = e.d;
+        if (e.t === 'breast' && Array.isArray(e.segs)) o.segs = e.segs.map(x => ({ s: x.s, a: x.a, b: x.b }));
+        events.push(o);
+      }
+    });
+    events.sort((x, y) => x.at - y.at);
+    const m = S.meta || {};
+    const out = { v: 1, exported: Date.now(), tz: 'Asia/Ho_Chi_Minh', birth: m.birth || null, events };
+    const bottles = events.filter(e => e.t === 'bottle').length;
+    finish(JSON.stringify(out), `${events.length} ghi chép, trong đó ${bottles} lần bú bình. Bấm Sao chép rồi dán vào nơi cần gửi.`);
+  }, () => { clearTimeout(timer); finish('', 'Tài khoản này chưa đọc được dữ liệu.'); });
+}
+function exportCopy() {
+  const ta = $('#f-export');
+  if (!ta || !ta.value) return;
+  const ok = () => toast('Đã sao chép dữ liệu');
+  const fallback = () => { ta.focus(); ta.select(); ta.setSelectionRange(0, ta.value.length); toast('Đã chọn sẵn, giữ vào ô chữ rồi chọn Sao chép'); };
+  try { navigator.clipboard.writeText(ta.value).then(ok, fallback); } catch (e) { fallback(); }
 }
 
 function submitImport() {
@@ -760,6 +816,8 @@ document.addEventListener('click', e => {
   else if (a === 'edit') { if (canAct()) { const ev = findEv(b.dataset.key, b.dataset.id); if (ev) openEdit(ev); } }
   else if (a === 'settings') openSettings();
   else if (a === 'signout') { closeSheet(); signOut(fb.auth); }
+  else if (a === 'export-load') exportLoad(b);
+  else if (a === 'export-copy') exportCopy();
   else if (a === 'cancel') closeSheet();
   else if (a === 'etype') { readDraft(); S.sheet.draft.t = b.dataset.t; openSheet(editHTML()); }
   else if (a === 'ed') { S.sheet.draft.d = b.dataset.d; pressGroup(b); }
