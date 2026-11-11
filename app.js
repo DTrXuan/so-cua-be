@@ -14,7 +14,7 @@ const TYPES = ['breast', 'bottle', 'diaper', 'sleep'];
 const PRESETS = [30, 60, 90, 120];
 const WD = ['CN', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7'];
 const LS_SIGNED = 'socuabe.signed';
-const APP_VERSION = 'v7';
+const APP_VERSION = 'v8';
 // Sleep tracking is hidden for now (set to true to bring it back; its code is kept).
 const SHOW_SLEEP = false;
 const PURGE_SLEEP_KEY = 'socuabe.purge.sleep.v1';
@@ -732,7 +732,7 @@ function exportLoad(btn) {
     inf.textContent = info; inf.hidden = false;
   };
   const timer = setTimeout(() => finish('', 'Chưa lấy được dữ liệu. Kiểm tra mạng rồi thử lại.'), 15000);
-  unsub = onSnapshot(collection(fb.db, 'days'), snap => {
+  unsub = onSnapshot(collection(fb.db, 'days'), { includeMetadataChanges: true }, snap => {
     if (snap.metadata.fromCache && navigator.onLine) return;   // wait for the server copy
     clearTimeout(timer);
     const events = [];
